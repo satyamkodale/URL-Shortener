@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -28,6 +29,14 @@ func generateShortURL(OriginalURL string) string {
 	fmt.Println("EncodeToString: ", hash)
 	fmt.Println("final string: ", hash[:8])
 	return hash[:8]
+}
+
+func getURL(id string) (URL, error) {
+	url, ok := urlDB[id]
+	if !ok {
+		return URL{}, errors.New("URL not found")
+	}
+	return url, nil
 }
 
 func createURL(originalURL string) string {
@@ -68,8 +77,14 @@ func ShortURLHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func redirectURLHandler(w http.ResponseWriter, r *http.Request) {
-
+	id := r.URL.Path[len("/redirect/"):]
+	url, err := getURL(id)
+	if err != nil {
+		http.Error(w, "Invalid request", http.StatusNotFound)
+	}
+	http.Redirect(w, r, url.OriginalURL, http.StatusFound)
 }
+
 func main() {
 	// fmt.Println("Starting URL shortener...")
 	// OriginalURL := "https://github.com/Prince-1501/"
