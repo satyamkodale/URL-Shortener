@@ -1,6 +1,9 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -13,11 +16,54 @@ type URL struct {
 	CreationDate time.Time `json:"creation_date"`
 }
 
+var urlDB = make(map[string]URL)
+
+func generateShortURL(OriginalURL string) string {
+	hasher := md5.New()
+	hasher.Write([]byte(OriginalURL)) // It converts the originalURL string to a byte slice
+	fmt.Println("hasher: ", hasher)
+	data := hasher.Sum(nil)
+	fmt.Println("hasher data: ", data)
+	hash := hex.EncodeToString(data)
+	fmt.Println("EncodeToString: ", hash)
+	fmt.Println("final string: ", hash[:8])
+	return hash[:8]
+}
+
+func createURL(originalURL string) string {
+	shortURL := generateShortURL(originalURL)
+	id := shortURL // Use the short URL as the ID for simplicity
+	urlDB[id] = URL{
+		ID:           id,
+		OriginalURL:  originalURL,
+		ShortURL:     shortURL,
+		CreationDate: time.Now(),
+	}
+	return shortURL
+}
+
 func RootPageURL(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello, world!")
 }
 
 func ShortURLHandler(w http.ResponseWriter, r *http.Request) {
+	var data struct {
+		URL string `json:"url"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	shortURL_ := createURL(data.URL)
+	// fmt.Fprintf(w, shortURL)
+	response := struct {
+		ShortURL string `json:"short_url"`
+	}{ShortURL: shortURL_}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 
 }
 
